@@ -1,11 +1,9 @@
-from claude_agent import run_claude_agent
+from langchain_agent import run_agent
 
 while True:
-    query = input("\nAsk BI Agent: ")
-
-    if query.lower() == "exit":
+    q = input("\nAsk BI Agent: ")
+    if q.lower() == "exit":
         break
 
-    result = run_claude_agent(query)
     print("\n📊 Answer:\n")
-    print(result)
+    print(run_agent(q))
