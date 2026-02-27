@@ -1,30 +1,34 @@
 import requests
 import datetime
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
 MONDAY_API_KEY = os.getenv("MONDAY_API_KEY")
-DEALS_BOARD_ID = os.getenv("DEALS_BOARD_ID")
-WORK_BOARD_ID = os.getenv("WORK_BOARD_ID")
-
 MONDAY_API_URL = "https://api.monday.com/v2"
 
 
 def query_board(board_id: str):
-    """Generic function to fetch board items live from monday.com"""
+    """
+    Fetches live board data from monday.com
+    Flattens the GraphQL structure
+    Returns clean structured rows + metadata
+    """
+
+    if not MONDAY_API_KEY:
+        raise Exception("MONDAY_API_KEY not found in environment variables")
 
     timestamp = datetime.datetime.utcnow().isoformat()
 
-    print(f"\n[TRACE] Monday API Call Initiated")
+    print("\n[TRACE] ===== MONDAY API CALL START =====")
     print(f"[TRACE] Board ID: {board_id}")
     print(f"[TRACE] Timestamp (UTC): {timestamp}")
 
     query = f"""
     query {{
       boards(ids: {board_id}) {{
-        items_page {{
+        items_page(limit: 100) {{
           items {{
             id
             name
@@ -48,19 +52,40 @@ def query_board(board_id: str):
     print(f"[TRACE] HTTP Status Code: {response.status_code}")
 
     if response.status_code != 200:
-        raise Exception("Monday API request failed")
+        raise Exception(f"Monday API request failed: {response.text}")
 
     data = response.json()
 
-    item_count = len(
-        data["data"]["boards"][0]["items_page"]["items"]
-    )
+    # Safety check
+    boards = data.get("data", {}).get("boards", [])
+    if not boards:
+        print("[TRACE] No boards found or invalid Board ID.")
+        return {"rows": [], "meta": {}}
 
-    print(f"[TRACE] Items Retrieved: {item_count}")
-    print("[TRACE] Monday API Call Completed\n")
+    items = boards[0].get("items_page", {}).get("items", [])
+
+    print(f"[TRACE] Raw Items Retrieved: {len(items)}")
+    #flatten
+    cleaned_rows = []
+
+    for item in items:
+        row = {
+            "item_id": item["id"],
+            "name": item["name"]
+        }
+
+        for col in item["column_values"]:
+            row[col["id"]] = col["text"]
+
+        cleaned_rows.append(row)
+
+    print(f"[TRACE] Flattened Rows Created: {len(cleaned_rows)}")
+    print("[TRACE] ===== MONDAY API CALL END =====\n")
 
     return {
-        "timestamp": timestamp,
-        "item_count": item_count,
-        "raw_data": data
+        "rows": cleaned_rows,
+        "meta": {
+            "rows_retrieved": len(cleaned_rows),
+            "api_called_at": timestamp
+        }
     }

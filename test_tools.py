@@ -1,7 +1,10 @@
-from mcp_server import fetch_deals, fetch_work_orders
+import json
+from mcp_server import fetch_deals
 
-print("Testing Deals...")
-print(fetch_deals())
+result = fetch_deals()
+#a bit cleaned up output for easier reading
+print("META:")
+print(json.dumps(result["meta"], indent=2))
 
-print("Testing Work Orders...")
-print(fetch_work_orders())
+print("\nSAMPLE ROWS:")
+print(json.dumps(result["rows"][:2], indent=2))
