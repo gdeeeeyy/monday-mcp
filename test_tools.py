@@ -1,10 +1,14 @@
+from monday_client import query_board
+import os
+from dotenv import load_dotenv
 import json
-from mcp_server import fetch_deals
 
-result = fetch_deals()
-#a bit cleaned up output for easier reading
-print("META:")
-print(json.dumps(result["meta"], indent=2))
+load_dotenv()
 
-print("\nSAMPLE ROWS:")
-print(json.dumps(result["rows"][:2], indent=2))
+print("\n====== FIRST 5 DEALS ======\n")
+deals = query_board(os.getenv("DEALS_BOARD_ID"))
+print(json.dumps(deals, indent=2))
+
+print("\n====== FIRST 5 WORK ORDERS ======\n")
+work_orders = query_board(os.getenv("WORK_BOARD_ID"))
+print(json.dumps(work_orders, indent=2))

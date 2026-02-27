@@ -1,7 +1,8 @@
 import requests
-import datetime
 import os
+import json
 from dotenv import load_dotenv
+import pandas as pd
 
 load_dotenv()
 
@@ -9,26 +10,21 @@ MONDAY_API_KEY = os.getenv("MONDAY_API_KEY")
 MONDAY_API_URL = "https://api.monday.com/v2"
 
 
-def query_board(board_id: str):
-    """
-    Fetches live board data from monday.com
-    Flattens the GraphQL structure
-    Returns clean structured rows + metadata
-    """
+# ======================================================
+# FETCH BOARD DATA
+# ======================================================
 
-    if not MONDAY_API_KEY:
-        raise Exception("MONDAY_API_KEY not found in environment variables")
-
-    timestamp = datetime.datetime.utcnow().isoformat()
-
-    print("\n[TRACE] ===== MONDAY API CALL START =====")
-    print(f"[TRACE] Board ID: {board_id}")
-    print(f"[TRACE] Timestamp (UTC): {timestamp}")
+def fetch_board(board_id: str):
 
     query = f"""
     query {{
       boards(ids: {board_id}) {{
-        items_page(limit: 100) {{
+        columns {{
+          id
+          title
+          type
+        }}
+        items_page(limit: 500) {{
           items {{
             id
             name
@@ -49,43 +45,115 @@ def query_board(board_id: str):
         headers={"Authorization": MONDAY_API_KEY}
     )
 
-    print(f"[TRACE] HTTP Status Code: {response.status_code}")
-
     if response.status_code != 200:
-        raise Exception(f"Monday API request failed: {response.text}")
+        raise Exception(response.text)
 
-    data = response.json()
+    board = response.json()["data"]["boards"][0]
+    return board["columns"], board["items_page"]["items"]
 
-    # Safety check
-    boards = data.get("data", {}).get("boards", [])
-    if not boards:
-        print("[TRACE] No boards found or invalid Board ID.")
-        return {"rows": [], "meta": {}}
 
-    items = boards[0].get("items_page", {}).get("items", [])
+# ======================================================
+# SAFE VALUE EXTRACTOR
+# ======================================================
 
-    print(f"[TRACE] Raw Items Retrieved: {len(items)}")
-    #flatten
-    cleaned_rows = []
+def extract_value(col_obj):
 
-    for item in items:
-        row = {
-            "item_id": item["id"],
-            "name": item["name"]
-        }
+    if col_obj["text"]:
+        return col_obj["text"]
+
+    if col_obj["value"]:
+        try:
+            parsed = json.loads(col_obj["value"])
+            if isinstance(parsed, dict):
+                return list(parsed.values())[0]
+            return parsed
+        except:
+            return col_obj["value"]
+
+    return None
+
+
+# ======================================================
+# AUTO NORMALIZER BASED ON COLUMN TYPE + TITLE
+# ======================================================
+
+def auto_clean(value, title):
+
+    if not value:
+        return None
+
+    title = title.lower()
+
+    # Date detection
+    if "date" in title:
+        try:
+            return pd.to_datetime(value).date().isoformat()
+        except:
+            return None
+
+    # Money detection
+    if any(word in title for word in ["amount", "value", "rupees"]):
+        try:
+            return float(str(value).replace(",", ""))
+        except:
+            return 0.0
+
+    # Probability mapping
+    if "prob" in title:
+        val = str(value).strip().lower()
+        return {"high": 75.0, "medium": 50.0, "low": 25.0}.get(val, 0.0)
+
+    # Quantity detection
+    if "quantity" in title:
+        try:
+            return int(float(value))
+        except:
+            return 0
+
+    # Status / sector formatting
+    if "status" in title or "sector" in title:
+        return str(value).strip().title()
+
+    # Default
+    return str(value).strip()
+
+
+# ======================================================
+# GENERIC BOARD NORMALIZATION
+# ======================================================
+
+def normalize_board(board_id: str, limit=5):
+
+    columns, items = fetch_board(board_id)
+
+    # Build id -> title map
+    id_to_title = {col["id"]: col["title"] for col in columns}
+
+    normalized = []
+
+    for item in items[:limit]:
+
+        row = {"deal_name": item["name"]}
 
         for col in item["column_values"]:
-            row[col["id"]] = col["text"]
 
-        cleaned_rows.append(row)
+            title = id_to_title.get(col["id"])
+            if not title:
+                continue
 
-    print(f"[TRACE] Flattened Rows Created: {len(cleaned_rows)}")
-    print("[TRACE] ===== MONDAY API CALL END =====\n")
+            clean_key = title.lower().strip().replace(" ", "_").replace("/", "_")
+            value = extract_value(col)
 
-    return {
-        "rows": cleaned_rows,
-        "meta": {
-            "rows_retrieved": len(cleaned_rows),
-            "api_called_at": timestamp
-        }
-    }
+            row[clean_key] = auto_clean(value, title)
+
+        normalized.append(row)
+
+    return normalized
+
+
+# ======================================================
+# ENTRY POINT
+# ======================================================
+
+def query_board(board_id: str):
+    return normalize_board(board_id, limit=5)

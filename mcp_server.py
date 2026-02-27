@@ -5,21 +5,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-mcp = FastMCP("monday-bi-agent")
+mcp = FastMCP("business-intelligence-agent")
 
 #Both of these triggers actual API calls to monday.com
 @mcp.tool()
 def fetch_deals():
     """Fetch live Deals board data"""
     board_id = os.getenv("DEALS_BOARD_ID")
-    return query_board(board_id)
+    return query_board(board_id, "deals")
 
 
 @mcp.tool()
 def fetch_work_orders():
     """Fetch live Work Orders board data"""
     board_id = os.getenv("WORK_BOARD_ID")
-    return query_board(board_id)
+    return query_board(board_id, "work_orders")
 
 
 if __name__ == "__main__":
