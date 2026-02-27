@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import uuid
 
-BACKEND = "https://your-backend.onrender.com/query/stream"
+BACKEND = "https://monday-mcp-pc7s.onrender.com/query/stream"
 
 st.title("⚡ Live AI BI Agent")
 
