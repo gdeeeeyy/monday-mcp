@@ -9,11 +9,7 @@ load_dotenv()
 MONDAY_API_KEY = os.getenv("MONDAY_API_KEY")
 MONDAY_API_URL = "https://api.monday.com/v2"
 
-
-# ======================================================
 # FETCH BOARD DATA
-# ======================================================
-
 def fetch_board(board_id: str):
 
     query = f"""
@@ -51,11 +47,7 @@ def fetch_board(board_id: str):
     board = response.json()["data"]["boards"][0]
     return board["columns"], board["items_page"]["items"]
 
-
-# ======================================================
 # SAFE VALUE EXTRACTOR
-# ======================================================
-
 def extract_value(col_obj):
 
     if col_obj["text"]:
@@ -72,11 +64,7 @@ def extract_value(col_obj):
 
     return None
 
-
-# ======================================================
 # AUTO NORMALIZER BASED ON COLUMN TYPE + TITLE
-# ======================================================
-
 def auto_clean(value, title):
 
     if not value:
@@ -117,11 +105,7 @@ def auto_clean(value, title):
     # Default
     return str(value).strip()
 
-
-# ======================================================
 # GENERIC BOARD NORMALIZATION
-# ======================================================
-
 def normalize_board(board_id: str, limit=5):
 
     columns, items = fetch_board(board_id)
@@ -150,10 +134,6 @@ def normalize_board(board_id: str, limit=5):
 
     return normalized
 
-
-# ======================================================
 # ENTRY POINT
-# ======================================================
-
 def query_board(board_id: str):
     return normalize_board(board_id, limit=5)
