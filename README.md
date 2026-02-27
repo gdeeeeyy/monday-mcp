@@ -40,7 +40,7 @@ This prevents repeated null values and makes the system flexible to schema chang
 
 ### 5. LLM Plan
 
-- Planning to use Claude as the LLM. - I dont have enough credits or smn for Claude have to look at Mistral or some other model
+- Planning to use Claude as the LLM. - So I've used groq's open-ai oss model for this kinda works well.
 - MCP tools will provide clean data to the LLM.
 - LLM will generate analytics like pipeline summaries and revenue insights.
 
@@ -54,5 +54,5 @@ This prevents repeated null values and makes the system flexible to schema chang
 - API working -> Done
 - MCP tools created -> Done
 - Data normalized -> Done
-- LLM integration -> pending
+- LLM integration -> Progressing
 - Deployment -> pending
